@@ -1,0 +1,10 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+boa_engine = "0.19"
+colored = "3.1.1"
+pyo3 = { version = "0.21", features = ["extension-module", "auto-initialize"] }
+rustyline = "17.0.2"
