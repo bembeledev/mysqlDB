@@ -15,16 +15,52 @@ use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::core::types::SuperValue;
 
-fn main() {
+#[tokio::main]
+async fn main() {
+    // Setup high-performance tracing for the "Auditoria Real"
+    tracing_subscriber::fmt::init();
+
     println!("{}", "Welcome to Super (SPL) REPL!".green().bold());
     println!("{}", "Type 'exit' or 'quit' to leave.".yellow());
 
     // Initialize integration engines if we want
     let _ = ministers::python_bridge::init_python_engine();
     let _ = ministers::js_bridge::init_js_engine();
+    let _ = ministers::java_bridge::init_java_engine();
+    let _ = ministers::c_bridge::init_c_engine();
 
     let mut rl = DefaultEditor::new().unwrap();
     let mut interpreter = Interpreter::new();
+
+    // Argument processing for file execution
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        let path = &args[1];
+        let content = std::fs::read_to_string(path).expect("Could not read file");
+
+        let lexer = Lexer::new(&content);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens);
+
+        match parser.parse() {
+            Ok(program) => {
+                match interpreter.eval_program(program) {
+                    Ok(result) => {
+                        if result != SuperValue::Void {
+                             println!("{:?}", result);
+                        }
+                    }
+                    Err(e) => {
+                        println!("{} {}", "Runtime Error:".red().bold(), e);
+                    }
+                }
+            }
+            Err(e) => {
+                println!("{} {}", "Syntax Error:".red().bold(), e);
+            }
+        }
+        return;
+    }
 
     // Very simple multiline string builder for the REPL
     let mut buffer = String::new();

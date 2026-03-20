@@ -10,9 +10,22 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter {
-            globals: SymbolTable::new(),
-        }
+        let mut globals = SymbolTable::new();
+        // Inject built-in functions
+        let _ = globals.define(
+            "print".to_string(),
+            SuperType::Any,
+            SuperValue::NativeFunction("print".to_string()),
+            false
+        );
+        let _ = globals.define(
+            "println".to_string(),
+            SuperType::Any,
+            SuperValue::NativeFunction("println".to_string()),
+            false
+        );
+
+        Interpreter { globals }
     }
 
     pub fn eval_program(&mut self, program: Program) -> Result<SuperValue, String> {
@@ -96,8 +109,12 @@ impl Interpreter {
                     match iter_val {
                          SuperValue::Object(map) => {
                              for (_key, val) in map {
-                                 loop_env.define(loop_v.clone(), SuperType::Any, val, false)?;
-                                 Self::eval_statement_static(*body.clone(), &mut loop_env)?;
+                                 // We need to spawn a scope specifically for this iteration
+                                 // so that the loop_v isn't shadowing itself in the same loop_env
+                                 let mut iter_env = loop_env.clone().spawn_child();
+                                 iter_env.define(loop_v.clone(), SuperType::Any, val, false)?;
+                                 Self::eval_statement_static(*body.clone(), &mut iter_env)?;
+                                 let _ = iter_env.kill_child()?;
                              }
                          }
                          // TODO strings, arrays etc.
@@ -146,6 +163,42 @@ impl Interpreter {
                     return_type,
                     body,
                 }, false)?;
+                Ok(SuperValue::Void)
+            }
+            Statement::ClassDeclaration { name, fields, methods } => {
+                let mut method_map = std::collections::HashMap::new();
+                for method_stmt in methods {
+                    if let Statement::FunctionDeclaration { name: method_name, parameters, return_type, body } = method_stmt {
+                        method_map.insert(method_name, SuperValue::Function {
+                            parameters,
+                            return_type,
+                            body,
+                        });
+                    }
+                }
+
+                env.define(name.clone(), SuperType::Any, SuperValue::Class {
+                    name,
+                    fields,
+                    methods: method_map,
+                }, false)?;
+
+                Ok(SuperValue::Void)
+            }
+            Statement::ImportStatement { path } => {
+                let content = std::fs::read_to_string(&path)
+                    .map_err(|_| format!("Could not read imported file '{}'", path))?;
+
+                let lexer = crate::lexer::Lexer::new(&content);
+                let tokens = lexer.tokenize();
+                let mut parser = crate::parser::Parser::new(tokens);
+                let program = parser.parse().map_err(|e| format!("Syntax error in '{}': {}", path, e))?;
+
+                // Evaluate imported module in the current environment
+                for stmt in program.statements {
+                    Self::eval_statement_static(stmt, env)?;
+                }
+
                 Ok(SuperValue::Void)
             }
             Statement::Return(expr_opt) => {
@@ -219,7 +272,14 @@ impl Interpreter {
                             _ => Err("Invalid operation on objects".to_string()),
                         }
                     }
-                    _ => Err(format!("Type mismatch in binary operation")),
+                    (a, b) => {
+                         if operator == BinaryOperator::Equal {
+                             return Ok(SuperValue::Bool(a == b));
+                         } else if operator == BinaryOperator::NotEqual {
+                             return Ok(SuperValue::Bool(a != b));
+                         }
+                         Err(format!("Type mismatch in binary operation"))
+                    }
                 }
             }
             Expression::UnaryOp { operator, right } => {
@@ -276,6 +336,9 @@ impl Interpreter {
                         }
                         Ok(SuperValue::Object(obj_map))
                     }
+                    SuperValue::NativeFunction(name) => {
+                        Self::call_native_function(&name, eval_args)
+                    }
                     _ => Err("Tried to call a non-function value".to_string())
                 }
             }
@@ -292,6 +355,81 @@ impl Interpreter {
                     _ => Err("Property access is only supported on objects".to_string())
                 }
             }
+            Expression::ObjectInstantiation { class_name, arguments } => {
+                let class_val = if let Some(sym) = env.lookup(&class_name) {
+                    sym.value
+                } else {
+                    return Err(format!("Undefined class '{}'", class_name));
+                };
+
+                let mut eval_args = Vec::new();
+                for arg in arguments {
+                    eval_args.push(Self::eval_expression_static(arg, env)?);
+                }
+
+                match class_val {
+                    SuperValue::Class { name, fields, methods } => {
+                        let mut obj_map = std::collections::HashMap::new();
+                        obj_map.insert("__type__".to_string(), SuperValue::String(name.clone()));
+
+                        let constructor_fields: Vec<_> = fields.into_iter().filter(|(_, _, _)| true).collect();
+
+                        if constructor_fields.len() != eval_args.len() {
+                            return Err(format!("Constructor for {} expected {} arguments, got {}", name, constructor_fields.len(), eval_args.len()));
+                        }
+
+                        for (i, (field_name, field_type, _)) in constructor_fields.into_iter().enumerate() {
+                            if !eval_args[i].matches(&field_type) {
+                                return Err(format!("Argument {} must be of type {:?}", field_name, field_type));
+                            }
+                            obj_map.insert(field_name, eval_args[i].clone());
+                        }
+
+                        // Attach methods to the object (a bit crude for OOP, but simple and effective)
+                        for (method_name, method_val) in methods {
+                             obj_map.insert(method_name, method_val);
+                        }
+
+                        Ok(SuperValue::Object(obj_map))
+                    }
+                    SuperValue::DataclassConstructor { name, fields } => {
+                        if fields.len() != eval_args.len() {
+                           return Err(format!("Constructor for {} expected {} arguments, got {}", name, fields.len(), eval_args.len()));
+                       }
+
+                       let mut obj_map = std::collections::HashMap::new();
+                       obj_map.insert("__type__".to_string(), SuperValue::String(name));
+
+                       for (i, (field_name, field_type)) in fields.iter().enumerate() {
+                            if !eval_args[i].matches(field_type) {
+                                 return Err(format!("Argument {} must be of type {:?}", field_name, field_type));
+                            }
+                            obj_map.insert(field_name.clone(), eval_args[i].clone());
+                       }
+                       Ok(SuperValue::Object(obj_map))
+                   }
+                   _ => Err(format!("'{}' is not a class or dataclass", class_name))
+                }
+            }
+        }
+    }
+
+    fn call_native_function(name: &str, args: Vec<SuperValue>) -> Result<SuperValue, String> {
+        match name {
+            "print" => {
+                for arg in args {
+                    print!("{}", arg);
+                }
+                Ok(SuperValue::Void)
+            }
+            "println" => {
+                for arg in args {
+                    print!("{} ", arg);
+                }
+                println!();
+                Ok(SuperValue::Void)
+            }
+            _ => Err(format!("Native function {} not implemented", name)),
         }
     }
 }

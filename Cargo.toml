@@ -4,7 +4,25 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# CORE & PARSING
+nom = "8.0.0"
+syn = "2.0.117"
+serde = { version = "1.0.216", features = ["derive"] }
+chumsky = "0.9.3"
+
+# MINISTERS
+pyo3 = { version = "0.21", features = ["auto-initialize"] }
+jni = "0.21.1"
 boa_engine = "0.19"
+libloading = "0.8.5"
+
+# INFRASTRUCTURE
+dashmap = "6.0.1"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+miette = { version = "7.2.0", features = ["fancy"] }
+tokio = { version = "1.40.0", features = ["rt", "rt-multi-thread", "macros"] }
+
+# CLI & REPL
 colored = "3.1.1"
-pyo3 = { version = "0.21", features = ["extension-module", "auto-initialize"] }
 rustyline = "17.0.2"

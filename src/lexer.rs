@@ -121,7 +121,7 @@ impl<'a> Lexer<'a> {
                         self.advance();
                         Token::NotEqual
                     } else {
-                        panic!("Unexpected character: !");
+                        Token::Error("Unexpected character: !".to_string())
                     }
                 }
                 '<' => {
@@ -150,7 +150,7 @@ impl<'a> Lexer<'a> {
                 ':' => Token::Colon,
                 ';' => Token::Semicolon,
                 '.' => Token::Dot,
-                _ => panic!("Unexpected character: {}", c),
+                _ => Token::Error(format!("Unexpected character: {}", c)),
             }
         } else {
             Token::EOF

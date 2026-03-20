@@ -43,6 +43,14 @@ pub enum Statement {
         is_dataclass: bool,
         fields: Vec<(String, SuperType)>,
     },
+    ClassDeclaration {
+        name: String,
+        fields: Vec<(String, SuperType, bool)>, // name, type, is_mutable
+        methods: Vec<Statement>, // Should be FunctionDeclarations
+    },
+    ImportStatement {
+        path: String,
+    },
     Return(Option<Expression>),
 }
 
@@ -69,6 +77,10 @@ pub enum Expression {
     PropertyAccess {
         object: Box<Expression>,
         property: String,
+    },
+    ObjectInstantiation {
+        class_name: String,
+        arguments: Vec<Expression>,
     },
 }
 

@@ -57,11 +57,17 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, String> {
+        if let Token::Error(e) = self.current() {
+            return Err(e);
+        }
+
         match self.current() {
             Token::Let | Token::Var => self.parse_variable_declaration(),
             Token::For | Token::While => self.parse_loop(),
             Token::Fn => self.parse_function_declaration(),
             Token::Type => self.parse_type_declaration(),
+            Token::Class => self.parse_class_declaration(),
+            Token::Import => self.parse_import_statement(),
             Token::If => self.parse_if_statement(),
             Token::Return => self.parse_return_statement(),
             Token::LBrace => self.parse_block(),
@@ -360,6 +366,56 @@ impl Parser {
         })
     }
 
+    fn parse_class_declaration(&mut self) -> Result<Statement, String> {
+        self.expect(Token::Class)?;
+        let name = if let Token::Identifier(id) = self.current() {
+            self.advance();
+            id
+        } else {
+            return Err("Expected class name".to_string());
+        };
+
+        self.expect(Token::LBrace)?;
+        let mut fields = Vec::new();
+        let mut methods = Vec::new();
+
+        while self.current() != Token::RBrace && self.current() != Token::EOF {
+            match self.current() {
+                Token::Let | Token::Var => {
+                    let is_mutable = if self.match_token(Token::Var) { true } else { self.advance(); false };
+                    let field_name = if let Token::Identifier(id) = self.current() { self.advance(); id } else { return Err("Expected field name".to_string()); };
+                    self.expect(Token::Colon)?;
+                    let field_type = self.parse_type_annotation()?;
+                    self.expect(Token::Semicolon)?;
+                    fields.push((field_name, field_type, is_mutable));
+                }
+                Token::Fn => {
+                    methods.push(self.parse_function_declaration()?);
+                }
+                _ => return Err(format!("Expected field or method declaration in class, found {:?}", self.current())),
+            }
+        }
+        self.expect(Token::RBrace)?;
+
+        Ok(Statement::ClassDeclaration {
+            name,
+            fields,
+            methods,
+        })
+    }
+
+    fn parse_import_statement(&mut self) -> Result<Statement, String> {
+        self.expect(Token::Import)?;
+        let path = if let Token::StringLiteral(p) = self.current() {
+            self.advance();
+            p
+        } else {
+            return Err("Expected string literal for import path".to_string());
+        };
+        self.expect(Token::Semicolon)?;
+        Ok(Statement::ImportStatement { path })
+    }
+
     fn parse_if_statement(&mut self) -> Result<Statement, String> {
         self.expect(Token::If)?;
         let condition = self.parse_expression()?;
@@ -559,6 +615,32 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<Expression, String> {
+        if self.match_token(Token::New) {
+            let class_name = if let Token::Identifier(id) = self.current() {
+                self.advance();
+                id
+            } else {
+                return Err("Expected class name after 'new'".to_string());
+            };
+
+            self.expect(Token::LParen)?;
+            let mut arguments = Vec::new();
+            if self.current() != Token::RParen {
+                loop {
+                    arguments.push(self.parse_expression()?);
+                    if !self.match_token(Token::Comma) {
+                        break;
+                    }
+                }
+            }
+            self.expect(Token::RParen)?;
+
+            return Ok(Expression::ObjectInstantiation {
+                class_name,
+                arguments,
+            });
+        }
+
         match self.current() {
             Token::IntLiteral(n) => {
                 self.advance();

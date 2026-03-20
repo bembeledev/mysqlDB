@@ -30,6 +30,40 @@ pub enum SuperValue {
         name: String,
         fields: Vec<(String, SuperType)>,
     },
+    Class {
+        name: String,
+        fields: Vec<(String, SuperType, bool)>, // name, type, is_mutable
+        methods: std::collections::HashMap<String, SuperValue>, // Map of Function SuperValues
+    },
+    NativeFunction(String),
+}
+
+impl std::fmt::Display for SuperValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SuperValue::Int(n) => write!(f, "{}", n),
+            SuperValue::Float(n) => write!(f, "{}", n),
+            SuperValue::String(s) => write!(f, "\"{}\"", s),
+            SuperValue::Bool(b) => write!(f, "{}", b),
+            SuperValue::Void => write!(f, "void"),
+            SuperValue::Function { .. } => write!(f, "[Function]"),
+            SuperValue::NativeFunction(name) => write!(f, "[Native Function {}]", name),
+            SuperValue::DataclassConstructor { name, .. } => write!(f, "[Dataclass {}]", name),
+            SuperValue::Class { name, .. } => write!(f, "[Class {}]", name),
+            SuperValue::Object(map) => {
+                write!(f, "{{ ")?;
+                let mut first = true;
+                for (k, v) in map {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", k, v)?;
+                    first = false;
+                }
+                write!(f, " }}")
+            }
+        }
+    }
 }
 
 impl SuperValue {
@@ -55,6 +89,8 @@ impl SuperValue {
             SuperValue::Void => SuperType::Void,
             SuperValue::Function { .. } => SuperType::Any, // simplified
             SuperValue::DataclassConstructor { .. } => SuperType::Any,
+            SuperValue::Class { .. } => SuperType::Any,
+            SuperValue::NativeFunction(_) => SuperType::Any,
         }
     }
 }

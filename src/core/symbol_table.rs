@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use dashmap::DashMap;
+use std::sync::Arc;
 use crate::core::types::{SuperType, SuperValue};
 
 #[derive(Debug, Clone)]
@@ -11,21 +12,22 @@ pub struct Symbol {
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
-    pub symbols: HashMap<String, Symbol>,
+    // "Tesouro Real" - Concurrent high performance hash map
+    pub symbols: Arc<DashMap<String, Symbol>>,
     pub parent: Option<Box<SymbolTable>>,
 }
 
 impl SymbolTable {
     pub fn new() -> Self {
         SymbolTable {
-            symbols: HashMap::new(),
+            symbols: Arc::new(DashMap::new()),
             parent: None,
         }
     }
 
     pub fn spawn_child(self) -> Self {
         SymbolTable {
-            symbols: HashMap::new(),
+            symbols: Arc::new(DashMap::new()),
             parent: Some(Box::new(self)),
         }
     }
@@ -57,7 +59,7 @@ impl SymbolTable {
     }
 
     pub fn assign(&mut self, name: &str, value: SuperValue) -> Result<(), String> {
-        if let Some(symbol) = self.symbols.get_mut(name) {
+        if let Some(mut symbol) = self.symbols.get_mut(name) {
             if !symbol.is_mutable {
                 return Err(format!("Cannot reassign immutable symbol '{}'", name));
             }

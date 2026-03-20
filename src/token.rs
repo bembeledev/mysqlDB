@@ -14,6 +14,9 @@ pub enum Token {
     Var,
     Return,
     Dataclass,
+    Class,
+    Import,
+    New,
 
     // Type Keywords
     TInt,
@@ -58,6 +61,7 @@ pub enum Token {
     Semicolon,
     Dot,
 
+    Error(String),
     EOF,
 }
 
@@ -77,6 +81,9 @@ impl Token {
             "var" => Token::Var,
             "return" => Token::Return,
             "dataclass" => Token::Dataclass,
+            "class" => Token::Class,
+            "import" => Token::Import,
+            "new" => Token::New,
             "true" => Token::BoolLiteral(true),
             "false" => Token::BoolLiteral(false),
             "int" => Token::TInt,
