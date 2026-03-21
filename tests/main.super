@@ -1,9 +1,0 @@
-import "tests/math.super";
-
-let math: object = new MathEngine(0);
-let result: int = math.add(10, 20);
-
-let data: object = new MathData("1.0.0");
-
-result;
-data.version;

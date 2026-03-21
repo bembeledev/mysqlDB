@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::ast::Statement;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SuperType {
@@ -10,8 +11,6 @@ pub enum SuperType {
     Void,
     Any,
 }
-
-use crate::ast::Statement;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SuperValue {
@@ -32,8 +31,9 @@ pub enum SuperValue {
     },
     Class {
         name: String,
-        fields: Vec<(String, SuperType, bool)>, // name, type, is_mutable
-        methods: std::collections::HashMap<String, SuperValue>, // Map of Function SuperValues
+        extends: Option<String>,
+        fields: Vec<(String, SuperType, bool)>,
+        methods: HashMap<String, SuperValue>,
     },
     NativeFunction(String),
 }
@@ -87,7 +87,7 @@ impl SuperValue {
             SuperValue::Bool(_) => SuperType::Bool,
             SuperValue::Object(_) => SuperType::Object,
             SuperValue::Void => SuperType::Void,
-            SuperValue::Function { .. } => SuperType::Any, // simplified
+            SuperValue::Function { .. } => SuperType::Any,
             SuperValue::DataclassConstructor { .. } => SuperType::Any,
             SuperValue::Class { .. } => SuperType::Any,
             SuperValue::NativeFunction(_) => SuperType::Any,

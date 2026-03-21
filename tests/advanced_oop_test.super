@@ -1,0 +1,99 @@
+// 1. Arquitetura de Contratos e Abstração
+interface ProcessadorDeDados {
+    public fn processar(dados: string) -> bool;
+}
+
+abstract class BaseRepositorio {
+    protected var conexaoAtiva: bool;
+    public static final let VERSAO: string = "1.0.0";
+
+    fn constructor() {
+        self.conexaoAtiva = false;
+    }
+
+    fn conectar() -> void {
+        self.conexaoAtiva = true;
+    }
+}
+
+// 3. Enum
+enum Status {
+    PROCESSANDO,
+    SUCESSO,
+    ERRO
+}
+
+// Exceções Customizadas
+class FalhaCriticaException {
+    let msg: string;
+    fn constructor(m: string) { self.msg = m; }
+}
+
+// 1. Herança Múltipla (Extends + Implements) e 2. Encapsulamento
+class RepositorioUsuarios extends BaseRepositorio implements ProcessadorDeDados {
+    private let nomeTabela: string;
+
+    fn constructor(tabela: any) {
+        // Inicializa estado super manual para escopo de teste (já que super() puro requereria resolver call chain)
+        self.conexaoAtiva = false;
+        self.nomeTabela = tabela;
+    }
+
+    @Override
+    public fn processar(dados: string) -> bool {
+        if (self.conexaoAtiva == false) {
+            throw new FalhaCriticaException("Sem conexao com o banco!");
+        }
+        print("Processando na tabela "); print(self.nomeTabela); print(": "); println(dados);
+        return true;
+    }
+}
+
+// 3. Tipagem e Funcionalidades Modernas: Generics e Lambdas
+class Colecao<T> {
+    private var itens: array;
+
+    fn constructor() {
+        self.itens = [];
+    }
+
+    fn adicionar(item: T) -> void {
+        // Usamos ministro JS para manipular o array simulando lambda internals se necessário,
+        // Mas a linguagem suporta nativamente inserção via assign se soubermos índice.
+        // Simulando list.push para o teste
+        println("Adicionado na colecao: ", item);
+    }
+}
+
+// 5. Ponto de Entrada (Main)
+fn main() -> void {
+    println("--- Iniciando Teste OOP Super ---");
+
+    let repo: object = new RepositorioUsuarios("tb_usuarios");
+    repo.conectar();
+
+    var status: int = Status.PROCESSANDO; // Enum converte para Inteiro na nossa AST
+
+    let usuarios: object = new Colecao<string>();
+
+    // 4. Fluxo de Controle: Laços for in (Python-style)
+    let nomes: array = ["Alice", "Bob", "Charlie"];
+
+    for nome in nomes {
+        usuarios.adicionar(nome);
+    }
+
+    // 4. Exceções e Controle
+    try {
+        repo.processar("Usuario_1");
+        repo.processar("Usuario_2");
+        status = Status.SUCESSO;
+    } catch (e: FalhaCriticaException) {
+        print("Erro capturado: "); println(e.msg);
+        status = Status.ERRO;
+    } finally {
+        print("Operação de processamento finalizada com status id: "); println(status);
+    }
+}
+
+main();

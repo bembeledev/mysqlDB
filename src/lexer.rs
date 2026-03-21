@@ -1,18 +1,24 @@
-use crate::token::Token;
+use crate::token::{SpannedToken, Token};
 
 pub struct Lexer<'a> {
     input: std::iter::Peekable<std::str::Chars<'a>>,
+    line: usize,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Lexer {
             input: input.chars().peekable(),
+            line: 1,
         }
     }
 
     fn advance(&mut self) -> Option<char> {
-        self.input.next()
+        let c = self.input.next();
+        if c == Some('\n') {
+            self.line += 1;
+        }
+        c
     }
 
     fn peek(&mut self) -> Option<&char> {
@@ -61,6 +67,50 @@ impl<'a> Lexer<'a> {
                 c if c.is_alphabetic() || c == '_' => {
                     let mut ident = String::from(c);
                     ident.push_str(&self.read_identifier());
+
+                    // Check for polyglot block: e.g. `js { ... }`
+                    if matches!(ident.as_str(), "js" | "py" | "java" | "cpp" | "cs" | "c" | "php" | "ts") {
+                        let mut temp_peek = self.input.clone();
+                        // skip whitespace in lookahead
+                        while let Some(&nc) = temp_peek.peek() {
+                            if nc.is_whitespace() {
+                                temp_peek.next();
+                            } else {
+                                break;
+                            }
+                        }
+                        if temp_peek.peek() == Some(&'{') {
+                            // It's a polyglot block. Read until matched '}'
+                            self.skip_whitespace();
+                            self.advance(); // consume '{'
+
+                            let mut block_content = String::new();
+                            let mut brace_depth = 1;
+
+                            while let Some(&nc) = self.peek() {
+                                if nc == '{' {
+                                    brace_depth += 1;
+                                    block_content.push(nc);
+                                    self.advance();
+                                } else if nc == '}' {
+                                    brace_depth -= 1;
+                                    if brace_depth == 0 {
+                                        self.advance(); // consume closing '}'
+                                        break;
+                                    } else {
+                                        block_content.push(nc);
+                                        self.advance();
+                                    }
+                                } else {
+                                    block_content.push(nc);
+                                    self.advance();
+                                }
+                            }
+
+                            return Token::PolyglotBlock(ident, block_content);
+                        }
+                    }
+
                     Token::lookup_keyword(&ident)
                 }
                 c if c.is_ascii_digit() => {
@@ -107,14 +157,35 @@ impl<'a> Lexer<'a> {
                     }
                 }
                 '*' => Token::Star,
-                '/' => Token::Slash,
+                '/' => {
+                    if self.peek() == Some(&'/') {
+                        // Skip inline comment
+                        while let Some(&nc) = self.peek() {
+                            if nc == '\n' {
+                                break;
+                            }
+                            self.advance();
+                        }
+                        return self.next_token();
+                    } else {
+                        Token::Slash
+                    }
+                }
                 '=' => {
                     if self.peek() == Some(&'=') {
                         self.advance();
                         Token::Equal
+                    } else if self.peek() == Some(&'>') {
+                        self.advance();
+                        Token::Arrow
                     } else {
                         Token::Assign
                     }
+                }
+                '@' => {
+                    let mut ident = String::from("@");
+                    ident.push_str(&self.read_identifier());
+                    Token::lookup_keyword(&ident)
                 }
                 '!' => {
                     if self.peek() == Some(&'=') {
@@ -157,15 +228,17 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn tokenize(mut self) -> Vec<Token> {
+    pub fn tokenize(mut self) -> Vec<SpannedToken> {
         let mut tokens = Vec::new();
         loop {
+            let line = self.line;
             let token = self.next_token();
+            let span = SpannedToken { token: token.clone(), line };
             if token == Token::EOF {
-                tokens.push(token);
+                tokens.push(span);
                 break;
             }
-            tokens.push(token);
+            tokens.push(span);
         }
         tokens
     }

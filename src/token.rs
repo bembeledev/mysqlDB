@@ -1,4 +1,10 @@
 #[derive(Debug, Clone, PartialEq)]
+pub struct SpannedToken {
+    pub token: Token,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // Keywords
     If,
@@ -17,6 +23,21 @@ pub enum Token {
     Class,
     Import,
     New,
+    Public,
+    Private,
+    Protected,
+    Static,
+    Final,
+    Abstract,
+    Interface,
+    Extends,
+    Implements,
+    Override,
+    Try,
+    Catch,
+    Finally,
+    Throw,
+    Enum,
 
     // Type Keywords
     TInt,
@@ -48,6 +69,10 @@ pub enum Token {
     GreaterEqual,
     PlusPlus,
     MinusMinus,
+    Arrow, // =>
+
+    // Polyglot Block (language, content)
+    PolyglotBlock(String, String),
 
     // Punctuation
     LParen,
@@ -84,6 +109,21 @@ impl Token {
             "class" => Token::Class,
             "import" => Token::Import,
             "new" => Token::New,
+            "public" => Token::Public,
+            "private" => Token::Private,
+            "protected" => Token::Protected,
+            "static" => Token::Static,
+            "final" => Token::Final,
+            "abstract" => Token::Abstract,
+            "interface" => Token::Interface,
+            "extends" => Token::Extends,
+            "implements" => Token::Implements,
+            "@Override" => Token::Override,
+            "try" => Token::Try,
+            "catch" => Token::Catch,
+            "finally" => Token::Finally,
+            "throw" => Token::Throw,
+            "enum" => Token::Enum,
             "true" => Token::BoolLiteral(true),
             "false" => Token::BoolLiteral(false),
             "int" => Token::TInt,
@@ -93,6 +133,8 @@ impl Token {
             "object" => Token::TObject,
             "void" => Token::TVoid,
             "any" => Token::TAny,
+            "array" => Token::TAny, // Soft fallback
+            "decimal" => Token::TFloat, // map decimal to float
             _ => Token::Identifier(ident.to_string()),
         }
     }

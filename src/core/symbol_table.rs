@@ -12,7 +12,6 @@ pub struct Symbol {
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
-    // "Tesouro Real" - Concurrent high performance hash map
     pub symbols: Arc<DashMap<String, Symbol>>,
     pub parent: Option<Box<SymbolTable>>,
 }
