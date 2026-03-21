@@ -1,0 +1,18 @@
+class Personagem {
+    public var nome: string;
+    public var nivel: int;
+
+    fn subirNivel() -> void {
+        self.nivel = self.nivel + 1;
+        println("Nível atual: ", self.nivel);
+    }
+}
+
+
+
+
+var heroi: object = new Personagem();
+heroi.nome = "Fernando";
+heroi.nivel = 1;
+
+heroi.subirNivel();
