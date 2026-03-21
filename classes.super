@@ -2,17 +2,21 @@ class Personagem {
     public var nome: string;
     public var nivel: int;
 
-    fn subirNivel() -> void {
+    fn subirNivel(self: object) -> void {
+        // Nota: Certifique-se que implementou a lógica de 'self' no interpretador
+        // para aceder a propriedades do objeto atual.
         self.nivel = self.nivel + 1;
         println("Nível atual: ", self.nivel);
     }
 }
 
+fn main() -> void {
+    // Como a classe tem 2 campos (nome e nivel), o seu interpretador
+    // exige 2 argumentos no construtor padrão.
+    var heroi: object = new Personagem("Fernando", 1);
 
+    // Chamar o método
+    heroi.subirNivel();
+}
 
-
-var heroi: object = new Personagem();
-heroi.nome = "Fernando";
-heroi.nivel = 1;
-
-heroi.subirNivel();
+main();
