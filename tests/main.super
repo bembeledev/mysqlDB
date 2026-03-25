@@ -1,0 +1,80 @@
+// 1. Tipos, Enums e Constantes (Rigor Java)
+enum StatusTransacao { PENDENTE, SUCESSO, ERRO }
+
+interface IProcessador {
+    public function processar(v: float) -> void;
+}
+
+// 2. Abstração e Herança (OO Pura)
+abstract class BasePagamento implements IProcessador {
+    protected static var contador: int = 0;
+    public final let id: string;
+
+    function constructor(id: string) {
+        self.id = id;
+        BasePagamento.contador = BasePagamento.contador + 1;
+    }
+
+    abstract public function getMoeda() -> string;
+}
+
+// 3. Classe Concreta com Poliglotismo (Hibridismo JS/Py)
+class SuperPagamento extends BasePagamento {
+    private let taxa: float = 0.05;
+
+    @Override
+    public function getMoeda() -> string { return "USD"; }
+
+    @Override
+    public function processar(valor: float) -> void {
+        // Chamada ao Ministro JS para cálculo e lógica dinâmica
+        var valida: string ="Bom dia";
+
+        if (valida == "true") {
+            // Chamada ao Ministro Python para funções matemáticas complexas
+            var finalNome: string = "Bembele";
+            print("Processado ID: "); print(self.id); print(" | Valor Final: "); println(finalNome);
+        } else {
+             throw new ErroFinanceiro("Valor invalido!");
+        }
+    }
+}
+
+class ErroFinanceiro {
+    let msg: string;
+    function constructor(m: string) { self.msg = m; }
+}
+
+// 4. Funcionalidades Modernas (Generics, Lambdas e Exceptions)
+class Container<T> {
+    private var item: T;
+    public function set(i: T) -> void { self.item = i; }
+    public function get() -> T { return self.item; }
+}
+
+// 5. Ponto de Entrada (Main)
+function  main() -> void {
+    println("--- Iniciando Motor Poliglota Super ---");
+
+    try {
+        var conta: object = new Container<SuperPagamento>();
+        conta.set(new SuperPagamento("TX-999"));
+
+        // Omni-Loop (Estilo JS/Java/Python)
+        let valores: array = [100.50, 500.00, -10.0];
+
+        // Teste de For-In
+        for valor in valores {
+            println("Log de auditoria: ", valor);
+            let pgto: object = conta.get();
+            pgto.processar(valor);
+        }
+
+    } catch (e: ErroFinanceiro) {
+        print("ALERTA DE SEGURANÇA: "); println(e.msg);
+    } finally {
+        println("Limpando memória do Cartório...");
+    }
+}
+
+main();

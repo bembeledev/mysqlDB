@@ -1,0 +1,91 @@
+// 1. Tipos, Enums e Constantes (Rigor Java)
+enum StatusTransacao { PENDENTE, SUCESSO, ERRO }
+
+interface IProcessador {
+    public fn processar(v: float) -> void;
+}
+
+// 2. Abstração e Herança (OO Pura)
+abstract class BasePagamento implements IProcessador {
+    protected static var contador: int = 0;
+    public final let id: string;
+
+    fn constructor(id: string) {
+        self.id = id;
+        BasePagamento.contador = BasePagamento.contador + 1;
+    }
+
+    abstract public fn getMoeda() -> string;
+}
+
+// 3. Classe Concreta com Poliglotismo (Hibridismo JS/Py)
+class SuperPagamento extends BasePagamento {
+    private let taxa: float = 0.05;
+
+    @Override
+    public fn getMoeda() -> string { return "USD"; }
+
+    @Override
+    public fn processar(valor: float) -> void {
+        // Chamada ao Ministro JS para cálculo e lógica dinâmica
+        var valida: string = js {
+            let v = parseFloat(valor); // 'valor' vem do escopo Rust via Polyglot Injection
+            if (v > 0 && v < 1000000) {
+                 return "true";
+            }
+            return "false";
+        };
+
+        if (valida == "true") {
+            // Chamada ao Ministro Python para funções matemáticas complexas
+            var final: string = py {
+                import math
+                v = float(valor)
+                t = float(taxa)
+                return str(v * (1 + math.log10(1 + t)))
+            };
+            print("Processado ID: "); print(self.id); print(" | Valor Final: "); println(final);
+        } else {
+             throw new ErroFinanceiro("Valor invalido!");
+        }
+    }
+}
+
+class ErroFinanceiro {
+    let msg: string;
+    fn constructor(m: string) { self.msg = m; }
+}
+
+// 4. Funcionalidades Modernas (Generics, Lambdas e Exceptions)
+class Container<T> {
+    private var item: T;
+    public fn set(i: T) -> void { self.item = i; }
+    public fn get() -> T { return self.item; }
+}
+
+// 5. Ponto de Entrada (Main)
+fn main() -> void {
+    println("--- Iniciando Motor Poliglota Super ---");
+
+    try {
+        var conta: object = new Container<SuperPagamento>();
+        conta.set(new SuperPagamento("TX-999"));
+
+        // Omni-Loop (Estilo JS/Java/Python)
+        let valores: array = [100.50, 500.00, -10.0];
+
+        // Teste de For-In
+        for val in valores {
+            println("Log de auditoria: ", val);
+            let pgto: object = conta.get();
+            pgto.processar(val);
+        }
+
+    } catch (e: ErroFinanceiro) {
+        print("ALERTA DE SEGURANÇA: "); println(e.msg);
+    } finally {
+        println("Limpando memória do Cartório...");
+    }
+}
+
+main();

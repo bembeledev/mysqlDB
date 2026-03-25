@@ -1,22 +1,56 @@
-class Personagem {
-    public var nome: string;
-    public var nivel: int;
+// 1. TESTE DE FIBONACCI (Recursão Dupla)
+// Isso testa se a tua Stack de chamadas limpa bem os ambientes
+function fib(n: int) -> int {
+    if (n <=1 ) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
 
-    fn subirNivel(self: object) -> void {
-        // Nota: Certifique-se que implementou a lógica de 'self' no interpretador
-        // para aceder a propriedades do objeto atual.
-        self.nivel = self.nivel + 1;
-        println("Nível atual: ", self.nivel);
+function fatorial(n: int) -> int {
+    if (n <= 1) { return 1; }
+    return n * fatorial(n - 1);
+}
+
+// 2. TESTE DE HIGH-ORDER FUNCTIONS (Lambdas)
+// Verifica se consegues passar funções como argumentos
+function aplicar_operacao(x: int, operacao: any) -> int {
+    return operacao(x);
+}
+
+// 3. TESTE DE LISTAS E CÁLCULOS COMPLEXOS
+function teste_stress_total() {
+    println("--- INICIANDO STRESS TEST ---");
+
+    // Mistura de tipos e operações
+    var calc: float = (100.5 * 2.0) / (10.0 % 3.0) + fatorial(4);
+    println("Cálculo Híbrido (225.0): ", calc);
+
+    // Fibonacci de 10 (55)
+    println("Fibonacci(10) [Esperado 55]: ", fib(10));
+
+    // Testando Lambda/Closure
+    var dobro = function(n: int) -> int { return n * 2; };
+    println("Resultado Lambda (20): ", aplicar_operacao(10, dobro));
+
+    // Teste de Escopo (Shadowing)
+    var x: int = 10;
+    {
+        var x: int = 50; // Este x não deve afetar o de fora
+        println("Escopo Interno (50): ", x);
+    }
+    println("Escopo Externo (10): ", x);
+
+    // Loop com lógica interna pesada
+    println("Sequência de somas complexas:");
+    for (var j: int = 0; j < 3; j = j + 1) {
+        var soma_louca: int = 0;
+        for (var k: int = 0; k < 10; k = k + 1) {
+            if (k % 2 == 0) {
+                soma_louca = soma_louca + k;
+            }
+        }
+        println("Soma Par 0-9 (20): ", soma_louca);
     }
 }
 
-fn main() -> void {
-    // Como a classe tem 2 campos (nome e nivel), o seu interpretador
-    // exige 2 argumentos no construtor padrão.
-    var heroi: object = new Personagem("Fernando", 1);
-
-    // Chamar o método
-    heroi.subirNivel();
-}
-
-main();
+// Rodar o Caos
+teste_stress_total();

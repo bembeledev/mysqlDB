@@ -1,4 +1,22 @@
-fn verificar_paridade(n: int) {
+// ==========================================
+// TESTE 1: ARITMÉTICA E PRECEDÊNCIA
+// ==========================================
+function teste_aritmetica() {
+    let a: int = 10 + 5 * 2;       // Esperado: 20
+    let b: int = (10 + 5) * 2;     // Esperado: 30
+    let c: int = 10 % 3;           // Esperado: 1 (Teu novo operador!)
+
+    println("--- Teste Aritmética ---");
+    println("Soma e Mult (20): ", a);
+    println("Parênteses  (30): ", b);
+    println("Módulo %    (1): ", c);
+    println("");
+}
+
+// ==========================================
+// TESTE 2: LOOP E PARIDADE (IF/ELSE)
+// ==========================================
+function verificar_paridade(n: int) {
     if (n % 2 == 0) {
         println(n, " é PAR");
     } else {
@@ -6,18 +24,41 @@ fn verificar_paridade(n: int) {
     }
 }
 
-for (var i: int = 1; i <= 5; i = i + 1) {
-    verificar_paridade(i);
+function teste_loop() {
+    println("--- Teste Loop e Paridade ---");
+    // Verifica se o teu 'i <= 5' retorna um Bool correto agora
+    for (var i: int = 1; i <= 5; i = i + 1) {
+        verificar_paridade(i);
+    }
+    println("");
 }
 
-
-
-fn fatorial(n: int) -> int {
+// ==========================================
+// TESTE 3: RECURSIVIDADE (FATORIAL)
+// ==========================================
+// O EvalResult::Return impede o Stack Overflow aqui!
+function fatorial(n: int) -> int {
     if (n <= 1) {
         return 1;
     }
     return n * fatorial(n - 1);
 }
 
-println("Fatorial de 5 (120): ", fatorial(5));
+function teste_recursividade() {
+    println("--- Teste Fatorial ---");
+    let res: int = fatorial(5);
+    println("Fatorial de 5 (120): ", res);
+    
+    let res10: int = fatorial(10);
+    println("Fatorial de 10 (3628800): ", res10);
+}
 
+// ==========================================
+// EXECUÇÃO PRINCIPAL
+// ==========================================
+teste_aritmetica();
+teste_loop();
+teste_recursividade();
+
+println("");
+println("👑 Todos os testes do Reino SPL finalizados!");
