@@ -1,0 +1,8 @@
+// ---------------------------------------------------------
+// 🧮 Módulo de Matemática para SPL
+// Criado por: Fernando Nelson Bembele (DIC Moz Solutions)
+// ---------------------------------------------------------
+
+// Constantes Reais
+var PI: float = 3.141592653589793;
+var E: float = 2.718281828459045;

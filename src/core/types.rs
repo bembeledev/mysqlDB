@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::ast::Statement;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SuperType {
@@ -10,7 +10,8 @@ pub enum SuperType {
     Object,
     Void,
     Any,
-    Custom(String)
+    Array,
+    Custom(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +22,9 @@ pub enum SuperValue {
     Bool(bool),
     Object(HashMap<String, SuperValue>),
     Void,
+    Null,
+
+    Array(Vec<SuperValue>),
     /// O segredo para a recursividade:
     /// Transporta o valor de um 'return' e sinaliza a interrupção do bloco.
     ReturnSignal(Box<SuperValue>),
@@ -47,10 +51,20 @@ impl std::fmt::Display for SuperValue {
         match self {
             SuperValue::Int(n) => write!(f, "{}", n),
             SuperValue::Float(n) => write!(f, "{}", n),
-            SuperValue::String(s) => write!(f, "\"{}\"", s),
+            SuperValue::String(s) => write!(f, "{}", s),
             SuperValue::Bool(b) => write!(f, "{}", b),
             SuperValue::Void => write!(f, "void"),
             SuperValue::ReturnSignal(val) => write!(f, "return {}", val),
+            SuperValue::Array(elements) => {
+                write!(f, "[")?;
+                for (i, el) in elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", el)?;
+                }
+                write!(f, "]")
+            }
             SuperValue::Function { .. } => write!(f, "[Function]"),
             SuperValue::NativeFunction(name) => write!(f, "[Native Function {}]", name),
             SuperValue::DataclassConstructor { name, .. } => write!(f, "[Dataclass {}]", name),
@@ -59,12 +73,15 @@ impl std::fmt::Display for SuperValue {
                 write!(f, "{{ ")?;
                 let mut first = true;
                 for (k, v) in map {
-                    if !first { write!(f, ", ")?; }
+                    if !first {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}: {}", k, v)?;
                     first = false;
                 }
                 write!(f, " }}")
             }
+            SuperValue::Null => write!(f, "null"),
         }
     }
 }
@@ -84,7 +101,6 @@ impl SuperValue {
     }
 
     pub fn matches(&self, expected_type: &SuperType) -> bool {
-        // Se for um sinal de retorno, validamos o valor interno
         if let SuperValue::ReturnSignal(val) = self {
             return val.matches(expected_type);
         }
@@ -97,13 +113,13 @@ impl SuperValue {
             SuperType::Bool => matches!(self, SuperValue::Bool(_)),
             SuperType::Object => matches!(self, SuperValue::Object(_)),
             SuperType::Void => matches!(self, SuperValue::Void),
-            SuperType::Custom(expected_name) => {
-            match self {
+            // 🎯 Adiciona o mapeamento do Array aqui:
+            SuperType::Array => matches!(self, SuperValue::Array(_)),
+            SuperType::Custom(expected_name) => match self {
                 SuperValue::Class { name, .. } => name == expected_name,
                 SuperValue::DataclassConstructor { name, .. } => name == expected_name,
                 _ => false,
-            }
-        }
+            },
         }
     }
 
@@ -114,9 +130,15 @@ impl SuperValue {
             SuperValue::String(_) => SuperType::String,
             SuperValue::Bool(_) => SuperType::Bool,
             SuperValue::Object(_) => SuperType::Object,
+            SuperValue::Array(_) => SuperType::Array, // 🎯 Essencial para o Caos
             SuperValue::Void => SuperType::Void,
+            SuperValue::Null => SuperType::Any,
             SuperValue::ReturnSignal(val) => val.get_type(),
-            _ => SuperType::Any,
+            SuperValue::Function { .. } => SuperType::Any,
+            SuperValue::NativeFunction(_) => SuperType::Any,
+            SuperValue::Class { name, .. } => SuperType::Custom(name.clone()),
+            SuperValue::DataclassConstructor { name, .. } => SuperType::Custom(name.clone()),
+
         }
     }
 }

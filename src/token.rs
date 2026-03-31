@@ -96,6 +96,8 @@ pub enum Token {
     Not, // !
     Bang,
 
+    From,
+
     PlusPlus,   // ++
     MinusMinus, // --
 
@@ -166,6 +168,7 @@ impl Token {
             "dataclass" => Token::Dataclass,
             "class" => Token::Class,
             "import" => Token::Import,
+            "from" => Token::From,
             "new" => Token::New,
 
             "public" => Token::Public,

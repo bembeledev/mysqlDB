@@ -75,8 +75,6 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
-        let start_line = self.line;
-        let start_column = self.column;
 
         if let Some(c) = self.advance() {
             match c {

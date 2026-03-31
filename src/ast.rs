@@ -9,7 +9,19 @@ pub struct Program {
 // STATEMENTS
 // ========================
 #[derive(Debug, Clone, PartialEq)]
+pub enum ImportType {
+    Star,                 // Para o '*'
+    Symbols(Vec<String>), // Para { power, sqrt, ... }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+    // import modulo;
+    Import {
+        module: String,
+        import_type: ImportType,
+    },
+    // from modulo import funcao, variavel;
     VariableDeclaration {
         name: String,
         is_mutable: bool,
@@ -105,10 +117,10 @@ pub enum Statement {
     ImportStatement {
         path: String,
     },
-    ForIn { 
-        variable: String, 
-        iterable: Expression, 
-        body: Box<Statement> 
+    ForIn {
+        variable: String,
+        iterable: Expression,
+        body: Box<Statement>,
     },
 }
 

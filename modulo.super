@@ -1,24 +1,10 @@
-// 3. Classe Concreta com Poliglotismo (Hibridismo JS/Py)
-class SuperPagamento extends BasePagamento {
-    private let taxa: float = 0.05;
+// calculos.super
+var PI: float = 3.14159;
 
-    @Override
-    public function getMoeda() -> string { return "USD"; }
+function calcular_imc(peso: float, altura: float) -> float {
+    return peso / (altura * altura);
+}
 
-    @Override
-    public function processar(valor: float) -> void {
-        // Chamada ao Ministro JS para cálculo e lógica dinâmica
-        var valida: string = "";
-
-        if (valida == true) {
-            // Chamada ao Ministro Python para funções matemáticas complexas
-            var finalNome: string = "";
-            print("Processado ID: "); 
-            print(self.id); 
-            print(" | Valor Final: "); 
-            println(finalNome);
-        } else {
-             throw new ErroFinanceiro("Valor invalido!");
-        }
-    }
+function saudacao(nome: string) -> string {
+    return "Olá, " + nome + "! Bem-vindo ao sistema.";
 }

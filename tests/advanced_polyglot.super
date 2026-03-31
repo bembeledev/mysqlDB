@@ -56,9 +56,12 @@ class Container<T> {
 function main() -> void {
     println("--- Iniciando Motor Poliglota Super ---");
 
-    try {
         var conta: object = new Container<SuperPagamento>();
         conta.set(new SuperPagamento("TX-999"));
+        println(conta);
+
+    try {
+
 
         // Omni-Loop (Estilo JS/Java/Python)
         let valores: array = [100.50, 500.00, -10.0];

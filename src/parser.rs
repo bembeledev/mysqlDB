@@ -1,4 +1,6 @@
-use crate::ast::{BinaryOperator, Expression, Program, Statement, UnaryOperator};
+use colored::Colorize;
+
+use crate::ast::{BinaryOperator, Expression, ImportType, Program, Statement, UnaryOperator};
 use crate::core::types::SuperType;
 use crate::token::Token;
 
@@ -18,6 +20,25 @@ impl Parser {
 
     fn current(&self) -> Token {
         self.tokens.get(self.pos).cloned().unwrap_or(Token::EOF)
+    }
+
+    fn consume(&mut self, expected: Token, message: &str) -> Result<Token, String> {
+        if self.check(expected.clone()) {
+            return Ok(self.advance());
+        }
+
+        // Se o token atual não for o esperado, geramos o erro
+        let token_atual = self.current();
+
+        // Dica: Como não tens .line, podes imprimir o token_atual
+        // para o Joelson saber o que o Parser encontrou de errado.
+        Err(format!(
+            "{} - Esperava: {:?}. Encontrado: {:?}. Detalhe: {}",
+            "Erro de Sintaxe".red().bold(),
+            expected,
+            token_atual,
+            message
+        ))
     }
 
     fn advance(&mut self) -> Token {
@@ -40,7 +61,7 @@ impl Parser {
         // Retorna o token que está uma posição atrás do atual
         self.tokens[self.pos - 1].clone()
     }
-
+    /// Consome um token baseado numa string identificadora (ex: "IMPORT", "{", "IDENTIFIER")
     fn peek_check(&self, token: Token) -> bool {
         if self.is_at_end() {
             return false;
@@ -131,7 +152,14 @@ impl Parser {
             Token::Try => self.parse_try_catch(),
             Token::Import => self.parse_import(),
             Token::LBrace => self.parse_block(),
-            _ => self.parse_expression_statement(),
+            _ => {
+                let expr = self.parse_expression()?;
+                // 🎯 Consome o ';' apenas se ele existir, para evitar travar o loop
+                if self.check(Token::Semicolon) {
+                    self.advance();
+                }
+                Ok(Statement::ExpressionStatement(expr))
+            }
         }
     }
     fn parse_variable_declaration(&mut self) -> Result<Statement, String> {
@@ -181,7 +209,8 @@ impl Parser {
     }
 
     fn parse_function_declaration(&mut self) -> Result<Statement, String> {
-        self.advance(); // fn
+        self.advance(); // Consome 'function' ou 'fn'
+
         let name = if let Token::Identifier(id) = self.current() {
             self.advance();
             id
@@ -198,11 +227,22 @@ impl Parser {
         } else {
             SuperType::Void
         };
-        let body = if self.match_token(Token::Semicolon) {
+
+        // 🎯 A SOLUÇÃO HÍBRIDA:
+        // Não usamos match_token(Semicolon) direto, pois ele "rouba" o token.
+        let body = if self.check(Token::LBrace) {
+            // Se encontrar '{', processa o bloco (Caos: fib, fatorial, etc)
+            Box::new(self.parse_block()?)
+        } else if self.match_token(Token::Semicolon) {
+            // Se encontrar ';', é uma assinatura (Interfaces/Abstract)
             Box::new(Statement::Block(vec![]))
         } else {
-            Box::new(self.parse_block()?)
+            return Err(format!(
+                "Esperado '{{' ou ';' na linha {:?}",
+                self.current()
+            ));
         };
+
         Ok(Statement::FunctionDeclaration {
             name,
             parameters,
@@ -210,7 +250,6 @@ impl Parser {
             body,
         })
     }
-
     fn parse_function_parameters(&mut self) -> Result<Vec<(String, SuperType)>, String> {
         let mut params = vec![];
         if !self.check(Token::RParen) {
@@ -272,18 +311,16 @@ impl Parser {
     }
 
     fn parse_for_loop(&mut self) -> Result<Statement, String> {
-        self.advance(); // Consome 'for'
+        self.advance(); // Consome o 'for'
 
-        // 🎯 DETECTA ESTILO PYTHON/JS/RUST: for valor in valores { ... }
-        // Se o token atual for um identificador e o próximo for 'in'
+        // 1. PRIMEIRO: Tenta detetar o estilo Python/JS/Rust (sem parênteses)
         if let Token::Identifier(var_name) = self.current() {
-            // Espreitamos o próximo para ter certeza que é um 'in'
             if self.peek_check(Token::In) || self.peek_check(Token::Identifier("in".into())) {
-                self.advance(); // Consome a variável (ex: 'valor')
-                self.advance(); // Consome 'in'
+                self.advance(); // Consome a variável
+                self.advance(); // Consome o 'in'
 
-                let iterable = self.parse_expression()?; // A lista/array
-                let body = Box::new(self.parse_block()?); // O corpo { ... }
+                let iterable = self.parse_expression()?;
+                let body = Box::new(self.parse_block()?);
 
                 return Ok(Statement::ForIn {
                     variable: var_name,
@@ -293,13 +330,17 @@ impl Parser {
             }
         }
 
-        // 🎯 ESTILO JAVA/PHP/JS CLÁSSICO: for (var i=0; i<10; i++)
+        // 2. SEGUNDO: Se não for for-in, entra no ESTILO JAVA/PHP/JS CLÁSSICO 🎯
         self.expect(Token::LParen)?;
 
         let init = if self.match_token(Token::Semicolon) {
             None
         } else {
             let s = self.parse_statement()?;
+            // 🔧 AJUSTE: O parse_statement já consumiu o ';' no parse_variable_declaration.
+            if self.check(Token::Semicolon) {
+                self.advance();
+            }
             Some(Box::new(s))
         };
 
@@ -307,9 +348,10 @@ impl Parser {
             None
         } else {
             let e = self.parse_expression()?;
-            // Se o init foi uma expressão e não um statement,
-            // talvez precise consumir o ';' aqui se o parse_statement não o fez
-            if !self.check(Token::Semicolon) {
+            // 🔧 AJUSTE: Garante que o ';' da condição é removido antes do incremento.
+            if self.check(Token::Semicolon) {
+                self.advance();
+            } else {
                 self.expect(Token::Semicolon)?;
             }
             Some(e)
@@ -323,7 +365,7 @@ impl Parser {
         };
 
         self.expect(Token::RParen)?;
-        let body = Box::new(self.parse_block()?); // Usar parse_block garante o suporte a { }
+        let body = Box::new(self.parse_block()?);
 
         Ok(Statement::For {
             init,
@@ -332,7 +374,6 @@ impl Parser {
             body,
         })
     }
-
     fn parse_class_declaration(&mut self) -> Result<Statement, String> {
         // 1. Assinatura da Classe (Abstract, Name, Extends, Implements)
         let is_abstract = self.match_token(Token::Abstract);
@@ -816,16 +857,6 @@ impl Parser {
         Ok(Statement::EnumDeclaration { name, variants })
     }
 
-    fn parse_import(&mut self) -> Result<Statement, String> {
-        self.advance();
-        if let Token::StringLiteral(path) = self.expect(Token::StringLiteral("".into()))? {
-            self.expect(Token::Semicolon)?;
-            Ok(Statement::ImportStatement { path })
-        } else {
-            Err("Expected string path for import".into())
-        }
-    }
-
     fn parse_type_declaration(&mut self) -> Result<Statement, String> {
         self.advance();
         let name = if let Token::Identifier(id) = self.expect(Token::Identifier("".into()))? {
@@ -870,5 +901,63 @@ impl Parser {
         }
         self.expect(Token::RBrace)?;
         Ok(Statement::InterfaceDeclaration { name, methods })
+    }
+
+    fn parse_import(&mut self) -> Result<Statement, String> {
+        self.consume(Token::Import, "Esperava 'import'")?;
+        self.consume(Token::LBrace, "Esperava '{'")?;
+
+        let mut symbols = Vec::new();
+        let mut import_all = false;
+
+        // Lógica para ler dentro das { }
+        while self.current() != Token::RBrace && !self.is_at_end() {
+            match self.current() {
+                Token::Star => {
+                    import_all = true;
+                    self.advance();
+                }
+                Token::Identifier(name) => {
+                    symbols.push(name);
+                    self.advance();
+                }
+                _ => {
+                    return Err(
+                        "Token inválido dentro do import. Use '*' ou nomes de símbolos.".into(),
+                    );
+                }
+            }
+
+            // Se houver uma vírgula, consome-a para permitir o próximo símbolo
+            if self.current() == Token::Comma {
+                self.advance();
+            } else if self.current() != Token::RBrace {
+                // Se não há vírgula e não é o fim, algo está errado (ex: import { a b })
+                return Err("Esperava ',' ou '}' no import.".into());
+            }
+        }
+
+        self.consume(Token::RBrace, "Esperava '}'")?;
+        self.consume(Token::From, "Esperava 'from'")?;
+
+        // 🎯 Captura do Módulo (Caminho ou Nome)
+        let module_name = match self.advance() {
+        Token::Identifier(name) => name,
+        Token::StringLiteral(path) => path,
+        _ => return Err("Syntax Error: O nome do módulo deve ser um identificador ou um caminho entre aspas.".into()),
+    };
+
+        self.consume(Token::Semicolon, "Faltou o ';' no final do import")?;
+
+        let import_type = if import_all {
+            ImportType::Star
+        } else {
+            ImportType::Symbols(symbols)
+        };
+
+        Ok(Statement::Import {
+            module: module_name,
+            import_type,
+        })
     }
 }
