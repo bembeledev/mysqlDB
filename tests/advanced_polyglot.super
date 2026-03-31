@@ -61,8 +61,6 @@ function main() -> void {
         println(conta);
 
     try {
-
-
         // Omni-Loop (Estilo JS/Java/Python)
         let valores: array = [100.50, 500.00, -10.0];
 

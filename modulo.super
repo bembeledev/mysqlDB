@@ -8,3 +8,4 @@ function calcular_imc(peso: float, altura: float) -> float {
 function saudacao(nome: string) -> string {
     return "Olá, " + nome + "! Bem-vindo ao sistema.";
 }
+

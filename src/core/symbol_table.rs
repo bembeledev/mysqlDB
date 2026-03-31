@@ -41,6 +41,18 @@ impl SymbolTable {
         );
     }
 
+    pub fn find_symbols_map(&self, name: &str) -> Option<Arc<DashMap<String, Symbol>>> {
+        if self.symbols.contains_key(name) {
+            return Some(self.symbols.clone());
+        }
+
+        // Se houver um pai, pede para o pai procurar
+        match &self.parent {
+            Some(parent) => parent.find_symbols_map(name),
+            None => None,
+        }
+    }
+
     pub fn spawn_child(self) -> Self {
         SymbolTable {
             symbols: Arc::new(DashMap::new()),
@@ -141,6 +153,26 @@ impl SymbolTable {
 
         if let Some(parent) = &self.parent {
             return parent.lookup(name);
+        }
+
+        None
+    }
+
+    // 🎯 A CORREÇÃO: Usa '_ consistentemente para indicar que a referência
+    // depende do tempo de vida da própria SymbolTable.
+
+    pub fn lookup_mut(
+        &self,
+        name: &str,
+    ) -> Option<dashmap::mapref::one::RefMut<'_, String, Symbol>> {
+        // 1. Tenta encontrar no escopo atual
+        if let Some(symbol) = self.symbols.get_mut(name) {
+            return Some(symbol);
+        }
+
+        // 2. Se não encontrar e houver um pai, procura recursivamente
+        if let Some(parent) = &self.parent {
+            return parent.lookup_mut(name);
         }
 
         None

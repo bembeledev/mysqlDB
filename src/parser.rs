@@ -541,16 +541,33 @@ impl Parser {
     }
 
     fn parse_unary(&mut self) -> Result<Expression, String> {
-        // Se o token atual for '-' ou '!', avançamos e criamos a operação
-        if self.match_token(Token::Minus) || self.match_token(Token::Bang) {
-            let operator = match self.previous() {
+        // 1. Primeiro verificamos os operadores que vêm ANTES (Prefix)
+        if self.match_token(Token::Minus)
+            || self.match_token(Token::Bang)
+            || self.match_token(Token::PlusPlus)
+            || self.match_token(Token::MinusMinus)
+        {
+            let token = self.previous();
+            let operator = match token {
                 Token::Minus => UnaryOperator::Minus,
                 Token::Bang => UnaryOperator::Not,
+                Token::PlusPlus => UnaryOperator::PreIncrement, // ++x
+                Token::MinusMinus => UnaryOperator::PreDecrement, // --x
                 _ => unreachable!(),
             };
 
-            // Recursão: permite tratar coisas como --10 ou !!true
+            // Chamada recursiva para permitir coisas como !!true ou -++x
             let right = self.parse_unary()?;
+
+            // Validação: Incremento prefixo exige um Identificador (variável)
+            if matches!(
+                operator,
+                UnaryOperator::PreIncrement | UnaryOperator::PreDecrement
+            ) {
+                if !matches!(right, Expression::Identifier(_)) {
+                    return Err("Erro: Operadores ++ e -- prefixados exigem uma variável.".into());
+                }
+            }
 
             return Ok(Expression::UnaryOp {
                 operator,
@@ -558,18 +575,104 @@ impl Parser {
             });
         }
 
-        // Se não houver operador unário, tentamos o literal/identificador
-        self.parse_primary()
+        // 2. Se não houver prefixo, lemos o termo base e passamos para o sufixo (Postfix)
+        let expr = self.parse_primary()?;
+        self.parse_postfix(expr)
     }
+    // ✨ NOVO MÉTODO: Trata o que vem DEPOIS da variável
+
+    fn parse_postfix(&mut self, mut expr: Expression) -> Result<Expression, String> {
+        loop {
+            // 🎯 1. CASO: Acesso a Array (dados[0])
+            if self.match_token(Token::LBracket) {
+                let index = self.parse_expression()?; // Avalia o que está dentro do [ ]
+                self.consume(Token::RBracket, "Esperado ']' após o índice do array.")?;
+
+                // Revolvemos a expressão atual num IndexAccess
+                expr = Expression::IndexAccess {
+                    array: Box::new(expr),
+                    index: Box::new(index),
+                };
+                continue; // Continua no loop para ver se há mais [ ] ou ++
+            }
+
+            // 🎯 2. CASO: Incremento/Decremento (x++ / x--)
+            if self.match_token(Token::PlusPlus) || self.match_token(Token::MinusMinus) {
+                let token = self.previous();
+                let operator = match token {
+                    Token::PlusPlus => UnaryOperator::PostIncrement,
+                    Token::MinusMinus => UnaryOperator::PostDecrement,
+                    _ => unreachable!(),
+                };
+
+                // Validamos se o alvo é algo que pode ser incrementado
+                if !matches!(
+                    expr,
+                    Expression::Identifier(_) | Expression::IndexAccess { .. }
+                ) {
+                    return Err(
+                        "Erro: Incremento postfix exige uma variável ou posição de array.".into(),
+                    );
+                }
+
+                expr = Expression::UnaryOp {
+                    operator,
+                    right: Box::new(expr),
+                };
+                continue;
+            }
+
+            // Se não houver mais nada, saímos do loop
+            break;
+        }
+
+        Ok(expr)
+    }
+
     fn parse_assignment(&mut self) -> Result<Expression, String> {
         let expr = self.parse_equality()?;
-        if self.match_token(Token::Assign) {
-            let value = self.parse_assignment()?;
+
+        // 🎯 Verificamos se o próximo token é um dos nossos operadores de atribuição
+        if matches!(
+            self.current(),
+            Token::Assign
+                | Token::PlusAssign
+                | Token::MinusAssign
+                | Token::StarAssign
+                | Token::SlashAssign
+                | Token::ModuloAssign
+        ) {
+            let operator_token = self.advance(); // Consome o +=, -=, etc.
+            let value = self.parse_assignment()?; // Recursão para permitir a = b = c += 10
+
+            // Se for um '=' simples, fazemos a atribuição normal
+            if operator_token == Token::Assign {
+                return Ok(Expression::Assignment {
+                    left: Box::new(expr),
+                    value: Box::new(value),
+                });
+            }
+
+            // 🚀 DESUGARING: Se for +=, -=, etc., transformamos em: left = left + value
+            let binary_op = match operator_token {
+                Token::PlusAssign => BinaryOperator::Plus,
+                Token::MinusAssign => BinaryOperator::Minus,
+                Token::StarAssign => BinaryOperator::Multiply,
+                Token::SlashAssign => BinaryOperator::Divide,
+                Token::ModuloAssign => BinaryOperator::Modulo,
+                _ => unreachable!(),
+            };
+
             return Ok(Expression::Assignment {
-                left: Box::new(expr),
-                value: Box::new(value),
+                left: Box::new(expr.clone()), // O alvo da atribuição (ex: dono)
+                value: Box::new(Expression::BinaryOp {
+                    left: Box::new(expr),   // O valor atual (ex: dono)
+                    operator: binary_op,    // A operação (ex: +)
+                    right: Box::new(value), // O novo valor (ex: 10)
+                }),
             });
         }
+
         Ok(expr)
     }
 
@@ -690,23 +793,36 @@ impl Parser {
                 Expression::BoolLiteral(false)
             }
 
-            Token::LBracket => {
-                self.advance(); // Consome '['
-                let mut elements = vec![];
+            Token::LBrace => {
+                self.advance(); // Consome '{'
+                let mut pairs = Vec::new();
 
-                if !self.check(Token::RBracket) {
+                if !self.check(Token::RBrace) {
                     loop {
-                        elements.push(self.parse_expression()?);
+                        // A chave pode ser uma String ou um Identificador (nome da propriedade)
+                        let key = match self.advance() {
+                            Token::StringLiteral(s) => s,
+                            Token::Identifier(id) => id,
+                            _ => {
+                                return Err(
+                                    "Esperada chave (string ou identificador) no objeto".into()
+                                );
+                            }
+                        };
+
+                        self.expect(Token::Colon)?; // Consome ':'
+                        let value = self.parse_expression()?; // Lê o valor da propriedade
+
+                        pairs.push((key, value));
+
                         if !self.match_token(Token::Comma) {
                             break;
                         }
                     }
                 }
 
-                self.expect(Token::RBracket)?; // Consome ']'
-
-                // 🎯 CORREÇÃO AQUI: Usa o nome exato do seu Enum
-                Expression::ArrayLiteral(elements)
+                self.expect(Token::RBrace)?; // Consome '}'
+                Expression::ObjectLiteral(pairs) // Certifica-te que tens este enum no ast.rs
             }
 
             Token::New => {
@@ -772,6 +888,27 @@ impl Parser {
                 self.expect(Token::RParen)?;
                 e
             }
+
+            // No teu parser.rs, dentro de parse_primary()
+            Token::LBracket => {
+                self.advance(); // Consome '['
+                let mut elements = vec![];
+
+                if !self.check(Token::RBracket) {
+                    loop {
+                        // Permite expressões complexas dentro do array: [1+1, get_nome()]
+                        elements.push(self.parse_expression()?);
+
+                        if !self.match_token(Token::Comma) {
+                            break;
+                        }
+                    }
+                }
+
+                self.expect(Token::RBracket)?; // Consome ']'
+                Expression::ArrayLiteral(elements) // Retorna o nó para o AST
+            }
+
             _ => return Err(format!("Unexpected token {:?}", self.current())),
         };
 

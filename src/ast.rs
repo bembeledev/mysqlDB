@@ -136,6 +136,8 @@ pub enum Expression {
     BoolLiteral(bool),
     Null,
 
+    Variable(String),
+
     // Identifiers
     Identifier(String),
 
@@ -220,6 +222,7 @@ pub enum Expression {
         body: Box<Statement>,
         return_type: SuperType,
     },
+    ObjectLiteral(Vec<(String, Expression)>),
 }
 
 // ========================
@@ -232,6 +235,8 @@ pub enum BinaryOperator {
     Multiply,
     Divide,
     Modulo,
+
+    
 
     Equal,
     NotEqual,
@@ -249,4 +254,8 @@ pub enum BinaryOperator {
 pub enum UnaryOperator {
     Minus,
     Not,
+    PostIncrement,
+    PostDecrement,
+    PreIncrement,
+    PreDecrement
 }

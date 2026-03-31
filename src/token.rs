@@ -58,6 +58,7 @@ pub enum Token {
     TObject,
     TVoid,
     TAny,
+    TArray,
 
     // ========================
     // Identifiers & Literals
@@ -98,8 +99,10 @@ pub enum Token {
 
     From,
 
-    PlusPlus,   // ++
-    MinusMinus, // --
+    PlusPlus,   // x++
+    MinusMinus, // x--
+    PrePlusPlus,   // ++x
+    PreMinusMinus, // --x
 
     Arrow,    // ->
     FatArrow, // =>
@@ -198,6 +201,7 @@ impl Token {
             "string" => Token::TString,
             "bool" => Token::TBool,
             "object" => Token::TObject,
+            "array" => Token::TArray,
             "void" => Token::TVoid,
             "any" => Token::TAny,
 

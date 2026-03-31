@@ -1,16 +1,59 @@
-// main.super
-import {calcular_imc, saudacao} from modulo;
-import { PI, E} from "math/math.super";
+//import { * } from "../projects/lib/object";
+// Estilo JSON / JavaScript
+var pessoa = {
+    "nome": "Fernando",
+    "empresa": "DIC Moz Solutions",
+    "skills": ["Rust", "SPL", "JavaFX"]
+};
+
+// Usando funções nativas herdadas do Rust
+var chaves = keys(pessoa); 
+println("Propriedades: ", chaves); // [nome, empresa, skills]
+
+if (has_prop(pessoa, "nome")) {
+    println("O programador é: ", pessoa["nome"]);
+}
+
+// Mesclando objetos
+var extras = { "local": "Maputo", "ano": 2026 };
+pessoa = assign(pessoa, extras);
+
+println("Objecto Completo: ", json(pessoa));
 
 
 
+var app = {
+    "versao": 1.0,
+    "autor": { "nome": "Fernando", "local": "Maputo" }, // Objeto dentro de objeto
+    "init": function() -> string { 
+    	println("Sistema DIC Moz iniciado!");
+    	return "Olá";
+     } // Função dentro de objeto
+};
+
+println(app.autor.nome); // "Fernando"
+var dados = app.init();               // "Sistema DIC Moz iniciado!"
+
+println(dados);
 
 
+var i = 0;
+var data = [10, [120, 60], [30, "Bembele"]];
 
+while (i < 3) {
+    data[i] = data[i] ;
+    // Dobrar o valor de cada posição
+    i = i + 1;
+}
 
+i = 0;
 
-println(ln(E));
+while (i < 3) {
+    println("Novo valor em ", i, ": ", data[i]);
+    if (i == 2) {
+        println(data[i][1]);
+    }
+    i = i + 1;
+}
 
-
-
-
+println(sort(data[1]));
