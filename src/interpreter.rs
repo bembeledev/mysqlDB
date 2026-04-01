@@ -762,27 +762,42 @@ impl Interpreter {
                     }
 
                     // Caso 2: Atribuição por índice (dados[0] = 12)
+                    // 🎯 Substitui o teu Caso 2 por este no interpreter.rs:
                     Expression::IndexAccess { array, index } => {
-                        let container = Self::eval_expression_static(*array, env)?;
-                        let key_val = Self::eval_expression_static(*index, env)?;
+                        // 1. Precisamos saber o NOME da variável (ex: "pessoa")
+                        if let Expression::Identifier(ref name) = *array {
+                            let key_val = Self::eval_expression_static(*index, env)?;
 
-                        match (container, key_val) {
-                            // Suporte para Arrays (já tens)
-                            (SuperValue::Array(items), idx_v) => {
-                                let idx = idx_v.to_f64()? as usize;
-                                if idx < items.len() {
-                                    Ok(items[idx].clone())
-                                } else {
-                                    Err("Índice fora de limites".into())
+                            // 2. Procuramos a variável original no ambiente de forma MUTÁVEL
+                            if let Some(mut symbol) = env.symbols.get_mut(name) {
+                                match (&mut symbol.value, key_val) {
+                                    // Caso seja um Objeto: pessoa["idade"] = "12"
+                                    (SuperValue::Object(map), SuperValue::String(key)) => {
+                                        map.insert(key, new_val.clone()); // 🚀 AQUI acontece a mágica
+                                        return Ok(new_val);
+                                    }
+
+                                    // Caso seja um Array: dados[0] = 12
+                                    (SuperValue::Array(items), idx_v) => {
+                                        let idx = idx_v.to_f64()? as usize;
+                                        if idx < items.len() {
+                                            items[idx] = new_val.clone();
+                                            return Ok(new_val);
+                                        } else {
+                                            return Err("Índice fora de limites".into());
+                                        }
+                                    }
+                                    _ => {
+                                        return Err("Tipo não suporta atribuição por índice".into());
+                                    }
                                 }
+                            } else {
+                                return Err(format!("Variável '{}' não encontrada", name).into());
                             }
-                            // 🎯 ADICIONA ISTO: Suporte para Objetos pessoa["nome"]
-                            (SuperValue::Object(map), SuperValue::String(key)) => {
-                                Ok(map.get(&key).cloned().unwrap_or(SuperValue::Null))
-                            }
-                            _ => Err("Tentativa de indexar tipo inválido".into()),
                         }
+                        Err("Alvo de atribuição inválido".into())
                     }
+
                     _ => Err("Runtime Error: Invalid assignment target".into()),
                 }
             }
